@@ -25,6 +25,11 @@ type InMemoryExpenseRepository struct {
 	nextID   int
 }
 
+// This line does nothing at run time. It makes the compiler check that
+// InMemoryExpenseRepository has every method of ExpenseRepository, even
+// though Go never needs an "implements" keyword.
+var _ ExpenseRepository = (*InMemoryExpenseRepository)(nil)
+
 // NewInMemoryExpenseRepository creates an empty repository.
 func NewInMemoryExpenseRepository() *InMemoryExpenseRepository {
 	return &InMemoryExpenseRepository{
