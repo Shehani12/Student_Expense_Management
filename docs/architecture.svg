@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="850" viewBox="0 0 960 850" font-family="Segoe UI, Arial, sans-serif" fill="#1A202C">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1A202C"/>
+    </marker>
+    <marker id="realize" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="16" markerHeight="16" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1,1 L13,7 L1,13 z" fill="#FFFFFF" stroke="#1A202C" stroke-width="1.4"/>
+    </marker>
+    <marker id="open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10" fill="none" stroke="#4A5568" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="850" fill="#FFFFFF"/>
+
+  <!-- Client -->
+  <rect x="40" y="20" width="580" height="60" rx="8" fill="#FFFFFF" stroke="#1A202C" stroke-width="1.6"/>
+  <text x="330" y="46" text-anchor="middle" font-size="16" font-weight="700">Client (Postman or curl)</text>
+  <text x="330" y="67" text-anchor="middle" font-size="13" fill="#4A5568">sends HTTP requests to http://localhost:8080</text>
+
+  <!-- Client <-> handlers -->
+  <line x1="270" y1="82" x2="270" y2="127" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="260" y="109" text-anchor="end" font-size="13">HTTP request + JSON body</text>
+  <line x1="390" y1="127" x2="390" y2="82" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="400" y="109" font-size="13">JSON response + status code</text>
+
+  <!-- handlers package -->
+  <rect x="40" y="130" width="580" height="150" rx="8" fill="#EAF2FB" stroke="#2B6CB0" stroke-width="1.6"/>
+  <text x="56" y="151" font-size="13" font-weight="700" fill="#2B6CB0">package handlers</text>
+  <rect x="60" y="160" width="540" height="30" rx="5" fill="#FFFFFF" stroke="#2B6CB0" stroke-dasharray="5 3"/>
+  <text x="330" y="180" text-anchor="middle" font-size="13"><tspan font-family="Consolas, monospace" font-weight="700">LogRequests</tspan> middleware: logs method, path, status and time</text>
+  <line x1="330" y1="190" x2="330" y2="203" stroke="#2B6CB0" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <rect x="60" y="204" width="540" height="64" rx="5" fill="#FFFFFF" stroke="#2B6CB0" stroke-width="1.4"/>
+  <text x="330" y="224" text-anchor="middle" font-size="14" font-weight="700" font-family="Consolas, monospace">ExpenseHandler</text>
+  <text x="330" y="243" text-anchor="middle" font-size="12.5">6 routes: /expenses, /expenses/{id} (GET, POST, PUT, DELETE) and /summary</text>
+  <text x="330" y="260" text-anchor="middle" font-size="12.5"><tspan font-family="Consolas, monospace">writeError</tspan>: ErrNotFound → 404, ErrInvalidExpense → 400</text>
+
+  <!-- handlers <-> service -->
+  <line x1="270" y1="282" x2="270" y2="327" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="260" y="309" text-anchor="end" font-size="13">method calls (Add, Get, …)</text>
+  <line x1="390" y1="327" x2="390" y2="282" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="400" y="309" font-size="13">result, or an error value</text>
+
+  <!-- service package -->
+  <rect x="40" y="330" width="580" height="110" rx="8" fill="#EAF6EE" stroke="#2F855A" stroke-width="1.6"/>
+  <text x="56" y="351" font-size="13" font-weight="700" fill="#2F855A">package service</text>
+  <rect x="60" y="360" width="540" height="66" rx="5" fill="#FFFFFF" stroke="#2F855A" stroke-width="1.4"/>
+  <text x="330" y="380" text-anchor="middle" font-size="14" font-weight="700" font-family="Consolas, monospace">ExpenseService</text>
+  <text x="330" y="399" text-anchor="middle" font-size="12.5"><tspan font-family="Consolas, monospace">clean()</tspan> trims text · <tspan font-family="Consolas, monospace">validate()</tspan> checks title, amount, category, date</text>
+  <text x="330" y="417" text-anchor="middle" font-size="12.5"><tspan font-family="Consolas, monospace">Summary()</tspan> totals per category, rounded to cents</text>
+
+  <!-- service -> repository -->
+  <line x1="330" y1="442" x2="330" y2="487" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="342" y="469" font-size="13">uses the interface only, not the concrete type</text>
+
+  <!-- repository package -->
+  <rect x="40" y="490" width="580" height="290" rx="8" fill="#FDF4E3" stroke="#B7791F" stroke-width="1.6"/>
+  <text x="56" y="511" font-size="13" font-weight="700" fill="#B7791F">package repository</text>
+
+  <rect x="110" y="522" width="440" height="94" rx="5" fill="#FFFFFF" stroke="#B7791F" stroke-width="1.4"/>
+  <text x="330" y="540" text-anchor="middle" font-size="12" font-style="italic" fill="#4A5568">«interface»</text>
+  <text x="330" y="558" text-anchor="middle" font-size="14" font-weight="700" font-family="Consolas, monospace">ExpenseRepository</text>
+  <line x1="110" y1="567" x2="550" y2="567" stroke="#B7791F"/>
+  <text x="330" y="586" text-anchor="middle" font-size="12.5" font-family="Consolas, monospace">Create(e) · GetAll() · GetByID(id)</text>
+  <text x="330" y="605" text-anchor="middle" font-size="12.5" font-family="Consolas, monospace">Update(id, e) · Delete(id)</text>
+
+  <line x1="330" y1="668" x2="330" y2="618" stroke="#1A202C" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#realize)"/>
+  <text x="342" y="647" font-size="13">implicit: no "implements" keyword needed</text>
+
+  <rect x="110" y="668" width="440" height="98" rx="5" fill="#FFFFFF" stroke="#B7791F" stroke-width="1.4"/>
+  <text x="330" y="688" text-anchor="middle" font-size="14" font-weight="700" font-family="Consolas, monospace">InMemoryExpenseRepository</text>
+  <line x1="110" y1="697" x2="550" y2="697" stroke="#B7791F"/>
+  <text x="126" y="716" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">mu        sync.RWMutex</text>
+  <text x="126" y="735" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">expenses  map[int]models.Expense</text>
+  <text x="126" y="754" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">nextID    int</text>
+  <text x="538" y="716" text-anchor="end" font-size="11.5" font-style="italic" fill="#4A5568">locks the map for safe concurrent use</text>
+  <text x="538" y="754" text-anchor="end" font-size="11.5" font-style="italic" fill="#4A5568">lowercase = hidden outside the package</text>
+
+  <!-- models package -->
+  <rect x="700" y="330" width="220" height="310" rx="8" fill="#F3F4F6" stroke="#4A5568" stroke-width="1.6"/>
+  <text x="716" y="351" font-size="13" font-weight="700" fill="#4A5568">package models</text>
+  <rect x="715" y="368" width="190" height="172" rx="5" fill="#FFFFFF" stroke="#4A5568" stroke-width="1.4"/>
+  <text x="810" y="389" text-anchor="middle" font-size="14" font-weight="700" font-family="Consolas, monospace">Expense <tspan font-weight="400" font-size="12" font-family="Segoe UI, Arial, sans-serif" font-style="italic" fill="#4A5568">(struct)</tspan></text>
+  <line x1="715" y1="398" x2="905" y2="398" stroke="#4A5568"/>
+  <text x="729" y="418" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">ID        int</text>
+  <text x="729" y="438" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">Title     string</text>
+  <text x="729" y="458" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">Amount    float64</text>
+  <text x="729" y="478" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">Category  string</text>
+  <text x="729" y="498" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">Date      string</text>
+  <text x="729" y="518" font-size="12.5" font-family="Consolas, monospace" xml:space="preserve">Note      string</text>
+  <text x="810" y="571" text-anchor="middle" font-size="12" fill="#4A5568">shared by every layer;</text>
+  <text x="810" y="588" text-anchor="middle" font-size="12" fill="#4A5568">JSON tags map it to and</text>
+  <text x="810" y="605" text-anchor="middle" font-size="12" fill="#4A5568">from request bodies</text>
+
+  <!-- uses Expense -->
+  <line x1="622" y1="236" x2="713" y2="395" stroke="#4A5568" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#open)"/>
+  <line x1="622" y1="393" x2="713" y2="440" stroke="#4A5568" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#open)"/>
+  <line x1="622" y1="716" x2="713" y2="525" stroke="#4A5568" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#open)"/>
+  <text x="650" y="300" text-anchor="end" font-size="12" fill="#4A5568">uses</text>
+  <text x="628" y="394" font-size="12" fill="#4A5568">uses</text>
+  <text x="664" y="652" font-size="12" fill="#4A5568">uses</text>
+
+  <!-- legend -->
+  <line x1="40" y1="815" x2="80" y2="815" stroke="#1A202C" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="88" y="819" font-size="12">call or data flow</text>
+  <line x1="220" y1="815" x2="266" y2="815" stroke="#1A202C" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#realize)"/>
+  <text x="274" y="819" font-size="12">implements an interface</text>
+  <line x1="440" y1="815" x2="480" y2="815" stroke="#4A5568" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#open)"/>
+  <text x="488" y="819" font-size="12">uses a type</text>
+  <rect x="600" y="806" width="18" height="18" rx="3" fill="#EAF2FB" stroke="#2B6CB0"/>
+  <text x="626" y="819" font-size="12">Go package (folder)</text>
+</svg>

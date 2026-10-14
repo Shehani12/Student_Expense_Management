@@ -22,6 +22,8 @@ func NewExpenseHandler(svc *service.ExpenseService) *ExpenseHandler {
 }
 
 // RegisterRoutes connects each URL pattern to its handler function.
+// Since Go 1.22 a pattern holds both the HTTP method and the path, and
+// {id} marks a path variable that r.PathValue("id") reads.
 func (h *ExpenseHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /expenses", h.create)
 	mux.HandleFunc("GET /expenses", h.list)
@@ -44,7 +46,7 @@ func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		status = http.StatusNotFound
-	case errors.Is(err, service.ErrInvalidExpense):
+	case errors.Is(err, service.ErrInvalidExpense), errors.Is(err, service.ErrInvalidFilter):
 		status = http.StatusBadRequest
 	}
 	writeJSON(w, status, map[string]string{"error": err.Error()})
@@ -59,17 +61,37 @@ func parseID(r *http.Request) (int, error) {
 	return id, nil
 }
 
-// decodeExpense reads an Expense from the JSON request body.
-func decodeExpense(r *http.Request) (models.Expense, error) {
+// filterFromQuery reads the optional query parameters, for example
+// /expenses?category=Food&from=2026-10-01&to=2026-10-31.
+func filterFromQuery(r *http.Request) service.Filter {
+	q := r.URL.Query()
+	return service.Filter{
+		Category: q.Get("category"),
+		From:     q.Get("from"),
+		To:       q.Get("to"),
+	}
+}
+
+// maxBodyBytes limits how large a request body can be (1 MB).
+const maxBodyBytes = 1 << 20
+
+// decodeExpense reads an Expense from the JSON request body. Unknown fields
+// (for example a misspelled "amout") are rejected instead of being ignored.
+func decodeExpense(w http.ResponseWriter, r *http.Request) (models.Expense, error) {
 	var e models.Expense
-	if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&e); err != nil {
 		return e, fmt.Errorf("%w: body must be valid JSON", service.ErrInvalidExpense)
 	}
 	return e, nil
 }
 
+// create handles POST /expenses: it adds an expense and returns it with 201 Created.
+// Bad aspect (repetitive error handling): every call that can fail needs its own
+// "if err != nil" block. writeError shortens each block, but cannot remove them.
 func (h *ExpenseHandler) create(w http.ResponseWriter, r *http.Request) {
-	e, err := decodeExpense(r)
+	e, err := decodeExpense(w, r)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -82,10 +104,18 @@ func (h *ExpenseHandler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, created)
 }
 
+// list handles GET /expenses: it returns every expense sorted by ID, or only
+// the ones matching ?category=, ?from= and ?to= when they are given.
 func (h *ExpenseHandler) list(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.svc.List())
+	expenses, err := h.svc.List(filterFromQuery(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, expenses)
 }
 
+// get handles GET /expenses/{id}: it returns one expense, or 404 if it does not exist.
 func (h *ExpenseHandler) get(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {
@@ -100,13 +130,14 @@ func (h *ExpenseHandler) get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, e)
 }
 
+// update handles PUT /expenses/{id}: it replaces an expense and returns the new version.
 func (h *ExpenseHandler) update(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	e, err := decodeExpense(r)
+	e, err := decodeExpense(w, r)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -119,6 +150,7 @@ func (h *ExpenseHandler) update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+// delete handles DELETE /expenses/{id}: it removes an expense and returns 204 No Content.
 func (h *ExpenseHandler) delete(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {
@@ -132,6 +164,14 @@ func (h *ExpenseHandler) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// summary handles GET /summary: it returns the count, the total and the total
+// per category. The same query parameters as list can limit it, for example
+// to one month.
 func (h *ExpenseHandler) summary(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.svc.Summary())
+	sum, err := h.svc.Summary(filterFromQuery(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sum)
 }
