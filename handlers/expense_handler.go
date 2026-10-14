@@ -46,7 +46,7 @@ func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		status = http.StatusNotFound
-	case errors.Is(err, service.ErrInvalidExpense):
+	case errors.Is(err, service.ErrInvalidExpense), errors.Is(err, service.ErrInvalidFilter):
 		status = http.StatusBadRequest
 	}
 	writeJSON(w, status, map[string]string{"error": err.Error()})
@@ -59,6 +59,17 @@ func parseID(r *http.Request) (int, error) {
 		return 0, fmt.Errorf("%w: id must be a number", service.ErrInvalidExpense)
 	}
 	return id, nil
+}
+
+// filterFromQuery reads the optional query parameters, for example
+// /expenses?category=Food&from=2026-10-01&to=2026-10-31.
+func filterFromQuery(r *http.Request) service.Filter {
+	q := r.URL.Query()
+	return service.Filter{
+		Category: q.Get("category"),
+		From:     q.Get("from"),
+		To:       q.Get("to"),
+	}
 }
 
 // maxBodyBytes limits how large a request body can be (1 MB).
@@ -93,9 +104,15 @@ func (h *ExpenseHandler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, created)
 }
 
-// list handles GET /expenses: it returns every expense, sorted by ID.
+// list handles GET /expenses: it returns every expense sorted by ID, or only
+// the ones matching ?category=, ?from= and ?to= when they are given.
 func (h *ExpenseHandler) list(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.svc.List())
+	expenses, err := h.svc.List(filterFromQuery(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, expenses)
 }
 
 // get handles GET /expenses/{id}: it returns one expense, or 404 if it does not exist.
@@ -147,7 +164,14 @@ func (h *ExpenseHandler) delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// summary handles GET /summary: it returns the count, the total and the total per category.
+// summary handles GET /summary: it returns the count, the total and the total
+// per category. The same query parameters as list can limit it, for example
+// to one month.
 func (h *ExpenseHandler) summary(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.svc.Summary())
+	sum, err := h.svc.Summary(filterFromQuery(r))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, sum)
 }

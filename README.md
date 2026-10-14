@@ -29,6 +29,18 @@ go test ./... -v
 | DELETE | /expenses/{id}   | Delete an expense                 |
 | GET    | /summary         | Total spent and total per category|
 
+`GET /expenses` and `GET /summary` accept optional filters, which can be combined:
+
+| Query parameter | Example                 | Meaning                                  |
+|-----------------|-------------------------|------------------------------------------|
+| `category`      | `?category=Food`        | only this category (case does not matter)|
+| `from`          | `?from=2026-10-01`      | on or after this date                    |
+| `to`            | `?to=2026-10-31`        | on or before this date                   |
+
+For example, `GET /summary?from=2026-10-01&to=2026-10-31` gives the spending
+summary for October. Expenses without a date are left out when a date range
+is used.
+
 Example request body:
 
 ```json

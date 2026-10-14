@@ -69,3 +69,35 @@ func TestLogRequestsKeepsStatus(t *testing.T) {
 		t.Errorf("middleware changed the status: got %d, want 404", rec.Code)
 	}
 }
+
+func TestQueryFilters(t *testing.T) {
+	mux := newTestServer()
+	do(mux, "POST", "/expenses", `{"title":"Lunch","amount":10,"category":"Food","date":"2026-09-28"}`)
+	do(mux, "POST", "/expenses", `{"title":"Bus","amount":3,"category":"Transport","date":"2026-10-01"}`)
+	do(mux, "POST", "/expenses", `{"title":"Dinner","amount":12,"category":"Food","date":"2026-10-15"}`)
+
+	tests := []struct {
+		name     string
+		path     string
+		wantCode int
+		wantBody string // a piece of text the response must contain
+	}{
+		{"list by category", "/expenses?category=food", http.StatusOK, `"title":"Dinner"`},
+		{"list by month", "/expenses?from=2026-10-01&to=2026-10-31", http.StatusOK, `"title":"Bus"`},
+		{"summary by month", "/summary?from=2026-10-01&to=2026-10-31", http.StatusOK, `"total_amount":15`},
+		{"bad date", "/expenses?from=tomorrow", http.StatusBadRequest, `from must be in YYYY-MM-DD format`},
+		{"backwards range", "/summary?from=2026-10-31&to=2026-10-01", http.StatusBadRequest, `from must not be after to`},
+	}
+	for _, tt := range tests {
+		rec := do(mux, "GET", tt.path, "")
+		if rec.Code != tt.wantCode || !strings.Contains(rec.Body.String(), tt.wantBody) {
+			t.Errorf("%s: GET %s returned %d %s, want %d containing %s",
+				tt.name, tt.path, rec.Code, rec.Body.String(), tt.wantCode, tt.wantBody)
+		}
+	}
+
+	// The September lunch must not appear in the October list.
+	if body := do(mux, "GET", "/expenses?from=2026-10-01", "").Body.String(); strings.Contains(body, "Lunch") {
+		t.Errorf("October list should not contain the September lunch: %s", body)
+	}
+}

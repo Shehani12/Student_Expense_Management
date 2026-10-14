@@ -15,10 +15,24 @@ import (
 var (
 	ErrNotFound       = errors.New("expense not found")
 	ErrInvalidExpense = errors.New("invalid expense")
+	ErrInvalidFilter  = errors.New("invalid filter")
 )
 
+// Filter limits which expenses are listed or summarised. Empty fields are
+// ignored, so an empty Filter matches every expense.
+type Filter struct {
+	Category string // only this category (upper/lower case does not matter)
+	From     string // earliest date to include, YYYY-MM-DD
+	To       string // latest date to include, YYYY-MM-DD
+}
+
 // Summary holds the totals returned by the /summary endpoint.
+// Category, From and To show which filter was used, and are left out of the
+// JSON when empty.
 type Summary struct {
+	Category    string             `json:"category,omitempty"`
+	From        string             `json:"from,omitempty"`
+	To          string             `json:"to,omitempty"`
 	Count       int                `json:"count"`
 	TotalAmount float64            `json:"total_amount"`
 	ByCategory  map[string]float64 `json:"by_category"`
@@ -60,12 +74,70 @@ func validate(e models.Expense) error {
 		return fmt.Errorf("%w: category must not be empty", ErrInvalidExpense)
 	}
 	// The date is optional, but if given it must be a real YYYY-MM-DD date.
-	if e.Date != "" {
-		if _, err := time.Parse(time.DateOnly, e.Date); err != nil {
-			return fmt.Errorf("%w: date must be in YYYY-MM-DD format", ErrInvalidExpense)
-		}
+	if e.Date != "" && !isDate(e.Date) {
+		return fmt.Errorf("%w: date must be in YYYY-MM-DD format", ErrInvalidExpense)
 	}
 	return nil
+}
+
+// isDate reports whether s is a real date in YYYY-MM-DD format.
+func isDate(s string) bool {
+	_, err := time.Parse(time.DateOnly, s)
+	return err == nil
+}
+
+// cleaned returns a copy of the filter with spaces trimmed from each field.
+func (f Filter) cleaned() Filter {
+	f.Category = strings.TrimSpace(f.Category)
+	f.From = strings.TrimSpace(f.From)
+	f.To = strings.TrimSpace(f.To)
+	return f
+}
+
+// check reports an error if a date is badly formatted or the range is backwards.
+func (f Filter) check() error {
+	if f.From != "" && !isDate(f.From) {
+		return fmt.Errorf("%w: from must be in YYYY-MM-DD format", ErrInvalidFilter)
+	}
+	if f.To != "" && !isDate(f.To) {
+		return fmt.Errorf("%w: to must be in YYYY-MM-DD format", ErrInvalidFilter)
+	}
+	if f.From != "" && f.To != "" && f.From > f.To {
+		return fmt.Errorf("%w: from must not be after to", ErrInvalidFilter)
+	}
+	return nil
+}
+
+// matches reports whether an expense passes the filter. Dates in YYYY-MM-DD
+// format sort the same way as text, so they can be compared as strings.
+func (f Filter) matches(e models.Expense) bool {
+	if f.Category != "" && !strings.EqualFold(e.Category, f.Category) {
+		return false
+	}
+	if (f.From != "" || f.To != "") && e.Date == "" {
+		return false // an expense without a date cannot be inside a date range
+	}
+	if f.From != "" && e.Date < f.From {
+		return false
+	}
+	if f.To != "" && e.Date > f.To {
+		return false
+	}
+	return true
+}
+
+// filter checks f and returns only the expenses that match it.
+func (s *ExpenseService) filter(f Filter) ([]models.Expense, error) {
+	if err := f.check(); err != nil {
+		return nil, err
+	}
+	list := make([]models.Expense, 0)
+	for _, e := range s.repo.GetAll() {
+		if f.matches(e) {
+			list = append(list, e)
+		}
+	}
+	return list, nil
 }
 
 // roundCents rounds an amount to 2 decimal places.
@@ -84,9 +156,10 @@ func (s *ExpenseService) Add(e models.Expense) (models.Expense, error) {
 	return s.repo.Create(e), nil
 }
 
-// List returns all expenses.
-func (s *ExpenseService) List() []models.Expense {
-	return s.repo.GetAll()
+// List returns the expenses that match the filter, sorted by ID.
+// An empty Filter returns every expense.
+func (s *ExpenseService) List(f Filter) ([]models.Expense, error) {
+	return s.filter(f.cleaned())
 }
 
 // Get returns one expense or ErrNotFound.
@@ -119,10 +192,21 @@ func (s *ExpenseService) Delete(id int) error {
 	return nil
 }
 
-// Summary adds up the total spending and the total per category.
-func (s *ExpenseService) Summary() Summary {
-	sum := Summary{ByCategory: make(map[string]float64)}
-	for _, e := range s.repo.GetAll() {
+// Summary adds up the total spending and the total per category for the
+// expenses that match the filter, for example one month of spending.
+func (s *ExpenseService) Summary(f Filter) (Summary, error) {
+	f = f.cleaned()
+	list, err := s.filter(f)
+	if err != nil {
+		return Summary{}, err
+	}
+	sum := Summary{
+		Category:   f.Category,
+		From:       f.From,
+		To:         f.To,
+		ByCategory: make(map[string]float64),
+	}
+	for _, e := range list {
 		sum.Count++
 		sum.TotalAmount += e.Amount
 		sum.ByCategory[e.Category] += e.Amount
@@ -131,5 +215,5 @@ func (s *ExpenseService) Summary() Summary {
 	for category, total := range sum.ByCategory {
 		sum.ByCategory[category] = roundCents(total)
 	}
-	return sum
+	return sum, nil
 }
